@@ -52,8 +52,8 @@ COURSES = {
 #  💳 TO'LOV REKVIZITLARI
 # ══════════════════════════════════════════════════════
 PAYMENT_DETAILS = {
-    "💳 Karta (Click / Payme)": "8600 1234 5678 9012\nEgasi: Familiya Ism",
-    "📱 Click": "https://my.click.uz/services/pay?service_id=XXXXX",
+    "💳 Karta": "5614 6810 1232 3550\nEgasi: Sharopova Jamila",
+    # "📱 Click": "havolangiz",
 }
 
 # ══════════════════════════════════════════════════════
