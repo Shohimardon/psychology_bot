@@ -26,6 +26,7 @@ COURSES = {
         "format": "Onlayn",
         "old_price": "990 000 so'm",
         "price": "299 000 so'm",
+        "bron_price": "100 000 so'm",  # bron summasi
         "bonus": "🔥 Aksiya! Narx 990 000 dan 299 000 so'mga tushirildi",
     },
     "vip": {
@@ -44,6 +45,7 @@ COURSES = {
         "format": "Onlayn",
         "old_price": "1 899 000 so'm",
         "price": "599 000 so'm",
+        "bron_price": "200 000 so'm",  # bron summasi
         "bonus": "🔥 Aksiya! Narx 1 899 000 dan 599 000 so'mga tushirildi",
     },
 }
@@ -67,4 +69,3 @@ WELCOME_TEXT = (
     "• Ro'yxatdan o'tib, onlayn to'lashingiz\n"
     "• Savol berishingiz mumkin\n\n"
     "Qiziqtirgan bo'limni tanlang 👇"
-)
