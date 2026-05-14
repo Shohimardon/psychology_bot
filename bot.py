@@ -151,7 +151,7 @@ async def show_contact(call: CallbackQuery):
     text = (
         "📞 <b>Psixolog bilan bog'lanish</b>\n\n"
         "Shaxsiy savollaringiz bo'lsa yoki konsultatsiya olmoqchi bo'lsangiz:\n\n"
-        "👩‍💼 @psychology_specialist\n\n"  # ← singilingizning username ini almashtiring
+        "👩‍💼 @OybarchinObidova\n\n"  # ← singilingizning username ini almashtiring
         "Bir necha soat ichida javob beramiz 🤍"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
