@@ -402,7 +402,7 @@ async def on_business_connect(bc: BusinessConnection):
 async def any_business_message(message: Message, state: FSMContext):
     text_lower = (message.text or "").lower()
     if any(word in text_lower for word in TRIGGER_WORDS):
-        await message.answer(DISCOUNT_WELCOME, parse_mode="HTML")
+        await message.answer(DISCOUNT_WELCOME, reply_markup=discount_trigger_kb(), parse_mode="HTML")
 
 
 async def main():
