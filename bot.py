@@ -1,4 +1,5 @@
 import asyncio
+import html
 import logging
 import os
 from datetime import datetime
@@ -24,13 +25,22 @@ dp = Dispatcher(storage=MemoryStorage())
 
 paid_clients: list[dict] = []
 
+# Ключевые слова — триггеры для скидочного сообщения
+TRIGGER_WORDS = ["kurs", "курс", "course", "narx", "price", "chegirma", "скидка"]
+
+DISCOUNT_WELCOME = (
+    "Assalomu aleykum😇\n\n"
+    "Xozirda <b>Standart va VIP tarifimizda</b> juda katta chegirma ketmoqda🎉🥳\n\n"
+    "Pastdagi <b>«Chegirma»</b> tugmasiga bosing👇"
+)
+
 
 # ─── States ───────────────────────────────────────────────────────────────────
 class Order(StatesGroup):
     waiting_name = State()
     waiting_phone = State()
-    waiting_screenshot = State()      # to'liq to'lov
-    waiting_bron_screenshot = State() # bron to'lovi
+    waiting_screenshot = State()
+    waiting_bron_screenshot = State()
 
 
 # ─── Klaviaturalar ────────────────────────────────────────────────────────────
@@ -76,11 +86,19 @@ def cancel_kb() -> InlineKeyboardMarkup:
     ])
 
 
+def discount_trigger_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🎉 Chegirma", callback_data="show_discount")],
+    ])
+
+
 # ─── Istalgan xabar → menyu ───────────────────────────────────────────────────
 @dp.message()
 async def any_message(message: Message, state: FSMContext):
-    # Faqat shaxsiy chatda ishlaydi
-    if message.chat.type != "private":
+    # Shaxsiy chat yoki biznes ulanish orqali kelgan xabarlar
+    is_private = message.chat.type == "private"
+    is_business = bool(message.business_connection_id)
+    if not is_private and not is_business:
         return
 
     current = await state.get_state()
@@ -110,7 +128,32 @@ async def any_message(message: Message, state: FSMContext):
             )
         return
 
+    # Ключевые слова — триггер скидочного сообщения
+    text_lower = (message.text or "").lower()
+    if any(word in text_lower for word in TRIGGER_WORDS):
+        await message.answer(DISCOUNT_WELCOME, reply_markup=discount_trigger_kb(), parse_mode="HTML")
+        return
+
     await message.answer(WELCOME_TEXT, reply_markup=main_menu_kb(), parse_mode="HTML")
+
+
+# ─── Chegirma callback ────────────────────────────────────────────────────────
+@dp.callback_query(F.data == "show_discount")
+async def show_discount(call: CallbackQuery):
+    text = (
+        "🎉 <b>Maxsus chegirma narxlar!</b>\n\n"
+        "📦 <b>Standart tarif</b>\n"
+        "<s>990,000 so'm</s> → <b>299,000 so'm</b> 🔥\n\n"
+        "💎 <b>VIP tarif</b>\n"
+        "<s>2,400,000 so'm</s> → <b>599,000 so'm</b> 🔥\n\n"
+        "⏰ Chegirma <b>cheklangan vaqtga!</b>\n\n"
+        "Kursga yozilish yoki batafsil ma'lumot uchun 👇"
+    )
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📚 Kurslarga qarash", callback_data="show_courses")],
+        [InlineKeyboardButton(text="📞 Psixolog bilan bog'lanish", callback_data="contact")],
+    ])
+    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
 
 
 # ─── Asosiy menyu ─────────────────────────────────────────────────────────────
@@ -151,7 +194,7 @@ async def show_contact(call: CallbackQuery):
     text = (
         "📞 <b>Psixolog bilan bog'lanish</b>\n\n"
         "Shaxsiy savollaringiz bo'lsa yoki konsultatsiya olmoqchi bo'lsangiz:\n\n"
-        "👩‍💼 @OybarchinObidova\n\n"  # ← singilingizning username ini almashtiring
+        "👩‍💼 @OybarchinObidova\n\n"
         "Bir necha soat ichida javob beramiz 🤍"
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
@@ -217,6 +260,9 @@ async def bron_start(call: CallbackQuery, state: FSMContext):
 
 # ─── Umumiy: ism ──────────────────────────────────────────────────────────────
 async def get_name(message: Message, state: FSMContext):
+    if len(message.text) > 100:
+        await message.answer("❌ Ism juda uzun. Iltimos, qisqaroq yozing.", reply_markup=cancel_kb())
+        return
     await state.update_data(name=message.text)
     await state.set_state(Order.waiting_phone)
     await message.answer(
@@ -227,6 +273,9 @@ async def get_name(message: Message, state: FSMContext):
 
 # ─── Umumiy: telefon → rekvizitlar ────────────────────────────────────────────
 async def get_phone(message: Message, state: FSMContext):
+    if len(message.text) > 50:
+        await message.answer("❌ Raqam juda uzun. Iltimos, qayta yozing.", reply_markup=cancel_kb())
+        return
     await state.update_data(phone=message.text)
     data = await state.get_data()
     course = COURSES.get(data["course_key"])
@@ -275,14 +324,17 @@ async def get_screenshot(message: Message, state: FSMContext):
         "date": now,
     })
 
+    safe_name = html.escape(data.get("name") or "")
+    safe_phone = html.escape(data.get("phone") or "")
+    safe_username = html.escape(message.from_user.username or "—")
     caption = (
         f"💰 <b>YANGI TO'LIQ TO'LOV!</b>\n\n"
-        f"👤 Ism: {data.get('name')}\n"
-        f"📱 Telefon: {data.get('phone')}\n"
+        f"👤 Ism: {safe_name}\n"
+        f"📱 Telefon: {safe_phone}\n"
         f"📚 Kurs: {course['name']}\n"
         f"💵 Summa: {course['price']}\n"
         f"🆔 Telegram ID: {message.from_user.id}\n"
-        f"👤 Username: @{message.from_user.username or '—'}\n"
+        f"👤 Username: @{safe_username}\n"
         f"📅 Sana: {now}"
     )
     await bot.send_photo(chat_id=ADMIN_GROUP_ID, photo=message.photo[-1].file_id,
@@ -314,15 +366,18 @@ async def get_bron_screenshot(message: Message, state: FSMContext):
         "date": now,
     })
 
+    safe_name = html.escape(data.get("name") or "")
+    safe_phone = html.escape(data.get("phone") or "")
+    safe_username = html.escape(message.from_user.username or "—")
     caption = (
         f"🔒 <b>YANGI BRON!</b>\n\n"
-        f"👤 Ism: {data.get('name')}\n"
-        f"📱 Telefon: {data.get('phone')}\n"
+        f"👤 Ism: {safe_name}\n"
+        f"📱 Telefon: {safe_phone}\n"
         f"📚 Kurs: {course['name']}\n"
         f"💵 Bron summasi: {course['bron_price']}\n"
         f"💰 Qolgan summa: ???\n"
         f"🆔 Telegram ID: {message.from_user.id}\n"
-        f"👤 Username: @{message.from_user.username or '—'}\n"
+        f"👤 Username: @{safe_username}\n"
         f"📅 Sana: {now}"
     )
     await bot.send_photo(chat_id=ADMIN_GROUP_ID, photo=message.photo[-1].file_id,
@@ -356,6 +411,9 @@ async def main():
     logger.info("Bot ishga tushdi!")
     await dp.start_polling(bot)
 
+
+if __name__ == "__main__":
+    asyncio.run(main())
 
 if __name__ == "__main__":
     asyncio.run(main())
