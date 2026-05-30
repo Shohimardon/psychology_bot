@@ -8,6 +8,7 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import (
     BusinessConnection,
     CallbackQuery,
@@ -34,6 +35,13 @@ DISCOUNT_WELCOME = (
     "Xozirda <b>Standart va VIP tarifimizda</b> juda katta chegirma ketmoqda🎉🥳\n\n"
     "Pastdagi <b>«Chegirma»</b> tugmasiga bosing👇"
 )
+
+
+async def safe_edit(call: CallbackQuery, text: str, reply_markup=None, parse_mode="HTML"):
+    try:
+        await call.message.edit_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+    except TelegramBadRequest:
+        await call.message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode)
 
 
 class Order(StatesGroup):
@@ -148,19 +156,19 @@ async def show_discount(call: CallbackQuery):
         [InlineKeyboardButton(text="📚 Kurslarga qarash", callback_data="show_courses")],
         [InlineKeyboardButton(text="📞 Psixolog bilan bog'lanish", callback_data="contact")],
     ])
-    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    await safe_edit(call, text, reply_markup=kb)
 
 
 @dp.callback_query(F.data == "back_main")
 async def back_main(call: CallbackQuery, state: FSMContext):
     await state.clear()
-    await call.message.edit_text(WELCOME_TEXT, reply_markup=main_menu_kb(), parse_mode="HTML")
+    await safe_edit(call, WELCOME_TEXT, reply_markup=main_menu_kb())
 
 
 @dp.callback_query(F.data == "show_courses")
 async def show_courses(call: CallbackQuery):
     text = "📚 <b>Bizning kurslar:</b>\n\nBatafsil ma'lumot uchun kursni tanlang 👇"
-    await call.message.edit_text(text, reply_markup=courses_kb(), parse_mode="HTML")
+    await safe_edit(call, text, reply_markup=courses_kb())
 
 
 @dp.callback_query(F.data == "faq")
@@ -180,7 +188,7 @@ async def show_faq(call: CallbackQuery):
         [InlineKeyboardButton(text="📚 Kurslarga qarash", callback_data="show_courses")],
         [InlineKeyboardButton(text="🔙 Orqaga", callback_data="back_main")],
     ])
-    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    await safe_edit(call, text, reply_markup=kb)
 
 
 @dp.callback_query(F.data == "contact")
@@ -194,7 +202,7 @@ async def show_contact(call: CallbackQuery):
     kb = InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔙 Orqaga", callback_data="back_main")],
     ])
-    await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
+    await safe_edit(call, text, reply_markup=kb)
 
 
 @dp.callback_query(F.data.startswith("course_"))
@@ -216,7 +224,7 @@ async def course_detail(call: CallbackQuery):
         f"🔒 <b>Bron:</b> {course['bron_price']} (oldindan to'lov)\n\n"
         f"✨ {course['bonus']}"
     )
-    await call.message.edit_text(text, reply_markup=course_detail_kb(key), parse_mode="HTML")
+    await safe_edit(call, text, reply_markup=course_detail_kb(key))
 
 
 @dp.callback_query(F.data.startswith("enroll_"))
@@ -224,10 +232,10 @@ async def enroll_start(call: CallbackQuery, state: FSMContext):
     key = call.data.replace("enroll_", "")
     await state.update_data(course_key=key, order_type="full")
     await state.set_state(Order.waiting_name)
-    await call.message.edit_text(
-        "✍️ <b>Zo'r! Ro'yxatdan o'tamiz.</b>\n\n"
-        "<b>Ism va familiyangizni</b> yozing:",
-        reply_markup=cancel_kb(), parse_mode="HTML"
+    await safe_edit(
+        call,
+        "✍️ <b>Zo'r! Ro'yxatdan o'tamiz.</b>\n\n<b>Ism va familiyangizni</b> yozing:",
+        reply_markup=cancel_kb()
     )
 
 
@@ -236,10 +244,10 @@ async def bron_start(call: CallbackQuery, state: FSMContext):
     key = call.data.replace("bron_", "")
     await state.update_data(course_key=key, order_type="bron")
     await state.set_state(Order.waiting_name)
-    await call.message.edit_text(
-        "🔒 <b>Ajoyib! Bron qilamiz.</b>\n\n"
-        "<b>Ism va familiyangizni</b> yozing:",
-        reply_markup=cancel_kb(), parse_mode="HTML"
+    await safe_edit(
+        call,
+        "🔒 <b>Ajoyib! Bron qilamiz.</b>\n\n<b>Ism va familiyangizni</b> yozing:",
+        reply_markup=cancel_kb()
     )
 
 
@@ -378,7 +386,8 @@ async def get_bron_screenshot(message: Message, state: FSMContext):
 @dp.callback_query(F.data == "cancel")
 async def cancel_order(call: CallbackQuery, state: FSMContext):
     await state.clear()
-    await call.message.edit_text(
+    await safe_edit(
+        call,
         "❌ Bekor qilindi.\n\nMenyuga qaytish uchun tugmani bosing 👇",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="🏠 Asosiy menyu", callback_data="back_main")]
@@ -423,4 +432,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
- 
+
