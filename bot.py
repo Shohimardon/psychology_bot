@@ -27,6 +27,7 @@ storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
 paid_clients: list[dict] = []
+business_connections: dict[str, int] = {}  # connection_id -> owner user_id
 
 TRIGGER_WORDS = ["kurs", "курс", "course", "narx", "price", "chegirma", "скидка"]
 
@@ -398,17 +399,34 @@ async def cancel_order(call: CallbackQuery, state: FSMContext):
 @dp.business_connection()
 async def on_business_connect(bc: BusinessConnection):
     if bc.is_enabled:
+        business_connections[bc.id] = bc.user.id
         logger.info("Biznes akkaunt ulandi: user_id=%s", bc.user.id)
         await bot.send_message(
             chat_id=bc.user.id,
             text="✅ Bot biznes akkauntingizga muvaffaqiyatli ulandi!\n\nEndi mijozlar xabar yozganda bot avtomatik javob beradi.",
         )
     else:
+        business_connections.pop(bc.id, None)
         logger.info("Biznes akkaunt uzildi: user_id=%s", bc.user.id)
 
 
 @dp.business_message()
 async def any_business_message(message: Message, state: FSMContext):
+    conn_id = message.business_connection_id
+
+    # Владельца кэшируем, если ещё не знаем
+    if conn_id not in business_connections:
+        try:
+            bc = await bot.get_business_connection(conn_id)
+            business_connections[conn_id] = bc.user.id
+        except Exception:
+            pass
+
+    # Игнорируем сообщения от самого владельца бизнес-аккаунта
+    owner_id = business_connections.get(conn_id)
+    if owner_id and message.from_user and message.from_user.id == owner_id:
+        return
+
     text_lower = (message.text or "").lower()
     if any(word in text_lower for word in TRIGGER_WORDS):
         await message.answer(DISCOUNT_WELCOME, reply_markup=discount_trigger_kb(), parse_mode="HTML")
@@ -432,4 +450,3 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
-
