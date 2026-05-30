@@ -9,6 +9,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import (
+    BusinessConnection,
     CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
@@ -21,11 +22,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(storage=MemoryStorage())
+storage = MemoryStorage()
+dp = Dispatcher(storage=storage)
 
 paid_clients: list[dict] = []
 
-# Ключевые слова — триггеры для скидочного сообщения
 TRIGGER_WORDS = ["kurs", "курс", "course", "narx", "price", "chegirma", "скидка"]
 
 DISCOUNT_WELCOME = (
@@ -35,7 +36,6 @@ DISCOUNT_WELCOME = (
 )
 
 
-# ─── States ───────────────────────────────────────────────────────────────────
 class Order(StatesGroup):
     waiting_name = State()
     waiting_phone = State()
@@ -43,7 +43,6 @@ class Order(StatesGroup):
     waiting_bron_screenshot = State()
 
 
-# ─── Klaviaturalar ────────────────────────────────────────────────────────────
 def main_menu_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="📚 Kurslar va narxlar", callback_data="show_courses")],
@@ -92,10 +91,8 @@ def discount_trigger_kb() -> InlineKeyboardMarkup:
     ])
 
 
-# ─── Istalgan xabar → menyu ───────────────────────────────────────────────────
 @dp.message()
 async def any_message(message: Message, state: FSMContext):
-    # Shaxsiy chat yoki biznes ulanish orqali kelgan xabarlar
     is_private = message.chat.type == "private"
     is_business = bool(message.business_connection_id)
     if not is_private and not is_business:
@@ -128,7 +125,6 @@ async def any_message(message: Message, state: FSMContext):
             )
         return
 
-    # Ключевые слова — триггер скидочного сообщения
     text_lower = (message.text or "").lower()
     if any(word in text_lower for word in TRIGGER_WORDS):
         await message.answer(DISCOUNT_WELCOME, reply_markup=discount_trigger_kb(), parse_mode="HTML")
@@ -137,7 +133,6 @@ async def any_message(message: Message, state: FSMContext):
     await message.answer(WELCOME_TEXT, reply_markup=main_menu_kb(), parse_mode="HTML")
 
 
-# ─── Chegirma callback ────────────────────────────────────────────────────────
 @dp.callback_query(F.data == "show_discount")
 async def show_discount(call: CallbackQuery):
     text = (
@@ -156,7 +151,6 @@ async def show_discount(call: CallbackQuery):
     await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
 
 
-# ─── Asosiy menyu ─────────────────────────────────────────────────────────────
 @dp.callback_query(F.data == "back_main")
 async def back_main(call: CallbackQuery, state: FSMContext):
     await state.clear()
@@ -203,7 +197,6 @@ async def show_contact(call: CallbackQuery):
     await call.message.edit_text(text, reply_markup=kb, parse_mode="HTML")
 
 
-# ─── Kurs tafsilotlari ────────────────────────────────────────────────────────
 @dp.callback_query(F.data.startswith("course_"))
 async def course_detail(call: CallbackQuery):
     key = call.data.replace("course_", "")
@@ -226,10 +219,6 @@ async def course_detail(call: CallbackQuery):
     await call.message.edit_text(text, reply_markup=course_detail_kb(key), parse_mode="HTML")
 
 
-# ══════════════════════════════════════════════════════
-#  ✅ TO'LIQ TO'LOV FLOWI
-# ══════════════════════════════════════════════════════
-
 @dp.callback_query(F.data.startswith("enroll_"))
 async def enroll_start(call: CallbackQuery, state: FSMContext):
     key = call.data.replace("enroll_", "")
@@ -241,10 +230,6 @@ async def enroll_start(call: CallbackQuery, state: FSMContext):
         reply_markup=cancel_kb(), parse_mode="HTML"
     )
 
-
-# ══════════════════════════════════════════════════════
-#  🔒 BRON FLOWI
-# ══════════════════════════════════════════════════════
 
 @dp.callback_query(F.data.startswith("bron_"))
 async def bron_start(call: CallbackQuery, state: FSMContext):
@@ -258,7 +243,6 @@ async def bron_start(call: CallbackQuery, state: FSMContext):
     )
 
 
-# ─── Umumiy: ism ──────────────────────────────────────────────────────────────
 async def get_name(message: Message, state: FSMContext):
     if len(message.text) > 100:
         await message.answer("❌ Ism juda uzun. Iltimos, qisqaroq yozing.", reply_markup=cancel_kb())
@@ -271,7 +255,6 @@ async def get_name(message: Message, state: FSMContext):
     )
 
 
-# ─── Umumiy: telefon → rekvizitlar ────────────────────────────────────────────
 async def get_phone(message: Message, state: FSMContext):
     if len(message.text) > 50:
         await message.answer("❌ Raqam juda uzun. Iltimos, qayta yozing.", reply_markup=cancel_kb())
@@ -308,7 +291,6 @@ async def get_phone(message: Message, state: FSMContext):
     await message.answer(payment_text, reply_markup=cancel_kb(), parse_mode="HTML")
 
 
-# ─── To'liq to'lov skrinshoti ─────────────────────────────────────────────────
 async def get_screenshot(message: Message, state: FSMContext):
     data = await state.get_data()
     course = COURSES.get(data["course_key"])
@@ -350,7 +332,6 @@ async def get_screenshot(message: Message, state: FSMContext):
     )
 
 
-# ─── Bron skrinshoti ──────────────────────────────────────────────────────────
 async def get_bron_screenshot(message: Message, state: FSMContext):
     data = await state.get_data()
     course = COURSES.get(data["course_key"])
@@ -394,7 +375,6 @@ async def get_bron_screenshot(message: Message, state: FSMContext):
     )
 
 
-# ─── Bekor qilish ─────────────────────────────────────────────────────────────
 @dp.callback_query(F.data == "cancel")
 async def cancel_order(call: CallbackQuery, state: FSMContext):
     await state.clear()
@@ -406,11 +386,41 @@ async def cancel_order(call: CallbackQuery, state: FSMContext):
     )
 
 
-# ─── Ishga tushirish ──────────────────────────────────────────────────────────
+@dp.business_connection()
+async def on_business_connect(bc: BusinessConnection):
+    if bc.is_enabled:
+        logger.info("Biznes akkaunt ulandi: user_id=%s", bc.user.id)
+        await bot.send_message(
+            chat_id=bc.user.id,
+            text="✅ Bot biznes akkauntingizga muvaffaqiyatli ulandi!\n\nEndi mijozlar xabar yozganda bot avtomatik javob beradi.",
+        )
+    else:
+        logger.info("Biznes akkaunt uzildi: user_id=%s", bc.user.id)
+
+
+@dp.business_message()
+async def any_business_message(message: Message, state: FSMContext):
+    text_lower = (message.text or "").lower()
+    if any(word in text_lower for word in TRIGGER_WORDS):
+        await message.answer(DISCOUNT_WELCOME, parse_mode="HTML")
+
+
 async def main():
     logger.info("Bot ishga tushdi!")
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(
+            bot,
+            allowed_updates=[
+                "message",
+                "callback_query",
+                "business_connection",
+                "business_message",
+            ]
+        )
+    finally:
+        await bot.session.close()
 
 
 if __name__ == "__main__":
     asyncio.run(main())
+
