@@ -414,7 +414,6 @@ async def on_business_connect(bc: BusinessConnection):
 async def any_business_message(message: Message, state: FSMContext):
     conn_id = message.business_connection_id
 
-    # Владельца кэшируем, если ещё не знаем
     if conn_id not in business_connections:
         try:
             bc = await bot.get_business_connection(conn_id)
@@ -422,9 +421,35 @@ async def any_business_message(message: Message, state: FSMContext):
         except Exception:
             pass
 
-    # Игнорируем сообщения от самого владельца бизнес-аккаунта
     owner_id = business_connections.get(conn_id)
     if owner_id and message.from_user and message.from_user.id == owner_id:
+        return
+
+    current = await state.get_state()
+
+    if current == Order.waiting_name:
+        await get_name(message, state)
+        return
+    if current == Order.waiting_phone:
+        await get_phone(message, state)
+        return
+    if current == Order.waiting_screenshot:
+        if message.photo:
+            await get_screenshot(message, state)
+        else:
+            await message.answer(
+                "📸 Iltimos, aynan to'lov <b>skrinshotini</b> (rasm) yuboring.",
+                reply_markup=cancel_kb(), parse_mode="HTML"
+            )
+        return
+    if current == Order.waiting_bron_screenshot:
+        if message.photo:
+            await get_bron_screenshot(message, state)
+        else:
+            await message.answer(
+                "📸 Iltimos, aynan bron to'lovi <b>skrinshotini</b> (rasm) yuboring.",
+                reply_markup=cancel_kb(), parse_mode="HTML"
+            )
         return
 
     text_lower = (message.text or "").lower()
@@ -450,3 +475,4 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
