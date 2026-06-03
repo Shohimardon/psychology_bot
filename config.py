@@ -68,5 +68,6 @@ WELCOME_TEXT = (
     "• Kurslar va narxlar haqida bilib olishingiz\n"
     "• Ro'yxatdan o'tib, onlayn to'lashingiz\n"
     "• Savol berishingiz mumkin\n\n"
-    "Qiziqtirgan bo'limni tanlang 👇" 
+    "Qiziqtirgan bo'limni tanlang 👇"
 )
+
