@@ -1,7 +1,6 @@
 import asyncio
 import html
 import logging
-import os
 from datetime import datetime
 
 from aiogram import Bot, Dispatcher, F
@@ -17,7 +16,7 @@ from aiogram.types import (
     Message,
 )
 
-from config import ADMIN_GROUP_ID, BOT_TOKEN, COURSES, PAYMENT_DETAILS, WELCOME_TEXT
+from config import ADMIN_GROUP_ID, BOT_TOKEN, WELCOME_TEXT
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -26,10 +25,9 @@ bot = Bot(token=BOT_TOKEN)
 storage = MemoryStorage()
 dp = Dispatcher(storage=storage)
 
-paid_clients: list[dict] = []
-business_connections: dict[str, int] = {}  # connection_id -> owner user_id
+business_connections: dict[str, int] = {}
 
-TRIGGER_WORDS = ["kurs", "курс", "course", "narx", "price", "chegirma", "скидка"]
+TRIGGER_WORDS = ["kurs", "курс", "course", "narx", "price", "chegirma", "скидка", "fotiha", "фотиха"]
 
 DISCOUNT_WELCOME = (
     "Assalomu aleykum😇\n\n"
@@ -37,54 +35,98 @@ DISCOUNT_WELCOME = (
     "Pastdagi <b>«Chegirma»</b> tugmasiga bosing👇"
 )
 
+FOTIHA_TEXT = (
+    "🌕 <b>\"FOTIHA\" TRANSFORMATSION KURSI</b> 🌕\n\n"
+    "✨ Chuqur ichki o'zgarish va uyg'onish kursi\n\n"
+    "Bu kursda siz:\n"
+    "🌿 ong osti bilan ishlaysiz\n"
+    "🌿 qo'rquvlarni yechasiz\n"
+    "🌿 qadrsizlikdan chiqasiz\n"
+    "🌿 ichki erkinlikni ochasiz\n"
+    "🌿 pul oqimi va energiya bilan ishlaysiz\n"
+    "🌿 o'zingizni qayta kashf qilasiz\n\n"
+    "✨ Kurs davomida:\n"
+    "🎧 audio aktivatsiyalar\n"
+    "📘 maxfiy PDF'lar\n"
+    "🌿 practice va topshiriqlar\n"
+    "💰 pul oqimi meditasiya\n"
+    "🔐 yopiq support chat\n"
+    "🎁 bonus darslar\n\n"
+    "ochiladi 🤍\n\n"
+    "━━━━━━━━━━━━━━━\n\n"
+    "🌿 <b>STANDARD TARIF</b>\n\n"
+    "✔ 8 ta jonli darslik\n"
+    "✔ Kurator yordamidan foydalanish\n"
+    "✔ Muloqot chat guruhiga kirish\n"
+    "✔ Kursga 3 oylik доступ\n\n"
+    "💎 Asl narxi:\n<s>990.000</s> ❌\n\n"
+    "✨ Chegirmada:\n<b>299.000 so'm</b> ✅\n\n"
+    "🎁 BONUS:\n"
+    "189$ lik\n"
+    "<b>\"MINNATDORCHILIK VA O'ZINI SEVISH\"</b>\n"
+    "darsi sovg'a 🎁\n\n"
+    "━━━━━━━━━━━━━━━\n\n"
+    "👑 <b>VIP TARIF</b>\n\n"
+    "✔ 8 ta jonli darslik\n"
+    "✔ Kuchli kurator support\n"
+    "✔ Yopiq chat guruh\n"
+    "✔ Keyingi kursga 30% voucher\n"
+    "✔ Kursga 6 oylik доступ\n\n"
+    "💎 Asl narxi:\n<s>2.400.000</s> ❌\n\n"
+    "✨ Chegirmada:\n<b>599.000 so'm</b> ✅\n\n"
+    "🎁 BONUS:\n"
+    "210$ lik\n"
+    "<b>\"BARAKALI AYOL\"</b>\n"
+    "to'liq kursiga umrbod доступ 🎁"
+)
 
-async def safe_edit(call: CallbackQuery, text: str, reply_markup=None, parse_mode="HTML"):
-    try:
-        await call.message.edit_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
-    except TelegramBadRequest:
-        await call.message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode)
+PAYMENT_TEXT = (
+    "💳 <b>TO'LOV UCHUN KARTA:</b>\n\n"
+    "5614 6810 1232 3550\n"
+    "👤 Sharopova Jamila\n\n"
+    "✅ To'lov qilgach:\n"
+    "📩 chekni yuboring\n\n"
+    "✨ To'lov tasdiqlangach,\n"
+    "sizga kurs ochiladi 🤍\n\n"
+    "⚠ AKSIYA LIMITLANGAN ⚠\n\n"
+    "🌕 Hozirda faqatgina\n"
+    "10 ta joy qoldi ✅\n\n"
+    "✨ STANDARD tarifdagi\n"
+    "299.000 so'mlik joylar\n\n"
+    "va 👑 VIP tarifdagi\n"
+    "599.000 so'mlik joylar\n\n"
+    "tez orada yopiladi ❗\n\n"
+    "⏳ Joylar tugagach:\n"
+    "❌ chegirma bekor qilinadi\n"
+    "❌ narxlar yana oshadi\n\n"
+    "💎 STANDARD:\n"
+    "990.000 ❌ → 299.000 ✅\n\n"
+    "👑 VIP:\n"
+    "2.400.000 ❌ → 599.000 ✅\n\n"
+    "🌿 Agar siz ham\n"
+    "o'zingizdagi o'zgarishni kechiktirmoqchi bo'lmasangiz —\n"
+    "hoziroq joyingizni band qiling 🤍"
+)
 
 
 class Order(StatesGroup):
-    waiting_name = State()
-    waiting_phone = State()
     waiting_screenshot = State()
-    waiting_bron_screenshot = State()
 
+
+# ─── Keyboards ───────────────────────────────────────
 
 def main_menu_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📚 Kurslar va narxlar", callback_data="show_courses")],
+        [InlineKeyboardButton(text="🌕 FOTIHA kursi va narxlar", callback_data="show_discount")],
         [InlineKeyboardButton(text="❓ Ko'p so'raladigan savollar", callback_data="faq")],
         [InlineKeyboardButton(text="📞 Psixolog bilan bog'lanish", callback_data="contact")],
     ])
 
 
-def courses_kb() -> InlineKeyboardMarkup:
-    buttons = []
-    for key, course in COURSES.items():
-        buttons.append([
-            InlineKeyboardButton(
-                text=f"{course['emoji']} {course['name']} — {course['price']}",
-                callback_data=f"course_{key}"
-            )
-        ])
-    buttons.append([InlineKeyboardButton(text="🔙 Orqaga", callback_data="back_main")])
-    return InlineKeyboardMarkup(inline_keyboard=buttons)
-
-
-def course_detail_kb(course_key: str) -> InlineKeyboardMarkup:
-    course = COURSES.get(course_key, {})
+def tariff_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text=f"✅ To'liq to'lash — {course.get('price', '')}",
-            callback_data=f"enroll_{course_key}"
-        )],
-        [InlineKeyboardButton(
-            text=f"🔒 Bron qilish — {course.get('bron_price', '')} (oldindan to'lov)",
-            callback_data=f"bron_{course_key}"
-        )],
-        [InlineKeyboardButton(text="🔙 Kurslarga qaytish", callback_data="show_courses")],
+        [InlineKeyboardButton(text="👑 VIP 599.000 ni tanladim", callback_data="enroll_vip")],
+        [InlineKeyboardButton(text="🌿 Standart 299.000 ni tanladim", callback_data="enroll_standart")],
     ])
 
 
@@ -100,6 +142,17 @@ def discount_trigger_kb() -> InlineKeyboardMarkup:
     ])
 
 
+# ─── Helpers ─────────────────────────────────────────
+
+async def safe_edit(call: CallbackQuery, text: str, reply_markup=None, parse_mode="HTML"):
+    try:
+        await call.message.edit_text(text, reply_markup=reply_markup, parse_mode=parse_mode)
+    except TelegramBadRequest:
+        await call.message.answer(text, reply_markup=reply_markup, parse_mode=parse_mode)
+
+
+# ─── Handlers ────────────────────────────────────────
+
 @dp.message()
 async def any_message(message: Message, state: FSMContext):
     is_private = message.chat.type == "private"
@@ -109,27 +162,12 @@ async def any_message(message: Message, state: FSMContext):
 
     current = await state.get_state()
 
-    if current == Order.waiting_name:
-        await get_name(message, state)
-        return
-    if current == Order.waiting_phone:
-        await get_phone(message, state)
-        return
     if current == Order.waiting_screenshot:
         if message.photo:
             await get_screenshot(message, state)
         else:
             await message.answer(
                 "📸 Iltimos, aynan to'lov <b>skrinshotini</b> (rasm) yuboring.",
-                reply_markup=cancel_kb(), parse_mode="HTML"
-            )
-        return
-    if current == Order.waiting_bron_screenshot:
-        if message.photo:
-            await get_bron_screenshot(message, state)
-        else:
-            await message.answer(
-                "📸 Iltimos, aynan bron to'lovi <b>skrinshotini</b> (rasm) yuboring.",
                 reply_markup=cancel_kb(), parse_mode="HTML"
             )
         return
@@ -144,32 +182,53 @@ async def any_message(message: Message, state: FSMContext):
 
 @dp.callback_query(F.data == "show_discount")
 async def show_discount(call: CallbackQuery):
-    text = (
-        "🎉 <b>Maxsus chegirma narxlar!</b>\n\n"
-        "📦 <b>Standart tarif</b>\n"
-        "<s>990,000 so'm</s> → <b>299,000 so'm</b> 🔥\n\n"
-        "💎 <b>VIP tarif</b>\n"
-        "<s>2,400,000 so'm</s> → <b>599,000 so'm</b> 🔥\n\n"
-        "⏰ Chegirma <b>cheklangan vaqtga!</b>\n\n"
-        "Kursga yozilish yoki batafsil ma'lumot uchun 👇"
+    await safe_edit(call, FOTIHA_TEXT, reply_markup=tariff_kb())
+
+
+@dp.callback_query(F.data.startswith("enroll_"))
+async def enroll_start(call: CallbackQuery, state: FSMContext):
+    key = call.data.replace("enroll_", "")
+    tariff = "👑 VIP — 599.000 so'm" if key == "vip" else "🌿 Standart — 299.000 so'm"
+    await state.update_data(tariff=tariff)
+    await state.set_state(Order.waiting_screenshot)
+    await safe_edit(call, PAYMENT_TEXT, reply_markup=cancel_kb())
+
+
+async def get_screenshot(message: Message, state: FSMContext):
+    data = await state.get_data()
+    tariff = data.get("tariff", "—")
+    now = datetime.now().strftime("%d.%m.%Y %H:%M")
+    safe_username = html.escape(message.from_user.username or "—")
+
+    caption = (
+        f"💰 <b>YANGI TO'LOV!</b>\n\n"
+        f"🎯 Tarif: {tariff}\n"
+        f"🆔 Telegram ID: <code>{message.from_user.id}</code>\n"
+        f"👤 Username: @{safe_username}\n"
+        f"📅 Sana: {now}"
     )
-    kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📚 Kurslarga qarash", callback_data="show_courses")],
-        [InlineKeyboardButton(text="📞 Psixolog bilan bog'lanish", callback_data="contact")],
-    ])
-    await safe_edit(call, text, reply_markup=kb)
+    await bot.send_photo(
+        chat_id=ADMIN_GROUP_ID,
+        photo=message.photo[-1].file_id,
+        caption=caption,
+        parse_mode="HTML"
+    )
+    await state.clear()
+    await message.answer(
+        "✅ <b>Rahmat! Chekingiz qabul qilindi.</b>\n\n"
+        "Tekshirib, tez orada kurs ochiladi. Odatda 24 soat ichida 🤍",
+        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
+            [InlineKeyboardButton(text="📞 Psixologga yozish", callback_data="contact")],
+            [InlineKeyboardButton(text="🏠 Asosiy menyu", callback_data="back_main")],
+        ]),
+        parse_mode="HTML"
+    )
 
 
 @dp.callback_query(F.data == "back_main")
 async def back_main(call: CallbackQuery, state: FSMContext):
     await state.clear()
     await safe_edit(call, WELCOME_TEXT, reply_markup=main_menu_kb())
-
-
-@dp.callback_query(F.data == "show_courses")
-async def show_courses(call: CallbackQuery):
-    text = "📚 <b>Bizning kurslar:</b>\n\nBatafsil ma'lumot uchun kursni tanlang 👇"
-    await safe_edit(call, text, reply_markup=courses_kb())
 
 
 @dp.callback_query(F.data == "faq")
@@ -186,7 +245,7 @@ async def show_faq(call: CallbackQuery):
         "Barcha darslar yozib olinadi, qulay vaqtda ko'rishingiz mumkin."
     )
     kb = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📚 Kurslarga qarash", callback_data="show_courses")],
+        [InlineKeyboardButton(text="🌕 Kursga yozilish", callback_data="show_discount")],
         [InlineKeyboardButton(text="🔙 Orqaga", callback_data="back_main")],
     ])
     await safe_edit(call, text, reply_markup=kb)
@@ -206,184 +265,6 @@ async def show_contact(call: CallbackQuery):
     await safe_edit(call, text, reply_markup=kb)
 
 
-@dp.callback_query(F.data.startswith("course_"))
-async def course_detail(call: CallbackQuery):
-    key = call.data.replace("course_", "")
-    course = COURSES.get(key)
-    if not course:
-        await call.answer("Kurs topilmadi", show_alert=True)
-        return
-
-    old_price_line = f"<s>{course['old_price']}</s> → " if course.get("old_price") else ""
-
-    text = (
-        f"{course['emoji']} <b>{course['name']}</b>\n\n"
-        f"📝 {course['description']}\n\n"
-        f"⏱ <b>Davomiyligi:</b> {course['duration']}\n"
-        f"👥 <b>Format:</b> {course['format']}\n"
-        f"💰 <b>Narxi:</b> {old_price_line}<b>{course['price']}</b>\n"
-        f"🔒 <b>Bron:</b> {course['bron_price']} (oldindan to'lov)\n\n"
-        f"✨ {course['bonus']}"
-    )
-    await safe_edit(call, text, reply_markup=course_detail_kb(key))
-
-
-@dp.callback_query(F.data.startswith("enroll_"))
-async def enroll_start(call: CallbackQuery, state: FSMContext):
-    key = call.data.replace("enroll_", "")
-    await state.update_data(course_key=key, order_type="full")
-    await state.set_state(Order.waiting_name)
-    await safe_edit(
-        call,
-        "✍️ <b>Zo'r! Ro'yxatdan o'tamiz.</b>\n\n<b>Ism va familiyangizni</b> yozing:",
-        reply_markup=cancel_kb()
-    )
-
-
-@dp.callback_query(F.data.startswith("bron_"))
-async def bron_start(call: CallbackQuery, state: FSMContext):
-    key = call.data.replace("bron_", "")
-    await state.update_data(course_key=key, order_type="bron")
-    await state.set_state(Order.waiting_name)
-    await safe_edit(
-        call,
-        "🔒 <b>Ajoyib! Bron qilamiz.</b>\n\n<b>Ism va familiyangizni</b> yozing:",
-        reply_markup=cancel_kb()
-    )
-
-
-async def get_name(message: Message, state: FSMContext):
-    if len(message.text) > 100:
-        await message.answer("❌ Ism juda uzun. Iltimos, qisqaroq yozing.", reply_markup=cancel_kb())
-        return
-    await state.update_data(name=message.text)
-    await state.set_state(Order.waiting_phone)
-    await message.answer(
-        "📱 <b>Telefon raqamingizni</b> yozing (yoki Telegram @username):",
-        reply_markup=cancel_kb(), parse_mode="HTML"
-    )
-
-
-async def get_phone(message: Message, state: FSMContext):
-    if len(message.text) > 50:
-        await message.answer("❌ Raqam juda uzun. Iltimos, qayta yozing.", reply_markup=cancel_kb())
-        return
-    await state.update_data(phone=message.text)
-    data = await state.get_data()
-    course = COURSES.get(data["course_key"])
-    order_type = data.get("order_type", "full")
-
-    if order_type == "bron":
-        summa = course["bron_price"]
-        await state.set_state(Order.waiting_bron_screenshot)
-        label = "🔒 <b>Bron uchun to'lov rekvizitlari</b>"
-        note = (
-            f"Bron summasi: <b>{summa}</b>\n\n"
-            "To'lovdan keyin <b>skrinshot</b> yuboring 📸\n"
-            "Sizni ro'yxatga olamiz va kurs boshlanishidan oldin xabar beramiz! 🤍"
-        )
-    else:
-        summa = course["price"]
-        await state.set_state(Order.waiting_screenshot)
-        label = "💳 <b>To'liq to'lov rekvizitlari</b>"
-        note = (
-            f"To'lov summasi: <b>{summa}</b>\n\n"
-            "To'lovdan keyin <b>skrinshot</b> yuboring 📸\n"
-            "Tekshirib, kursning yopiq guruhiga qo'shamiz! 🔐"
-        )
-
-    payment_text = f"{label}\n\nKurs: <b>{course['name']}</b>\nSumma: <b>{summa}</b>\n\n"
-    for method, details in PAYMENT_DETAILS.items():
-        payment_text += f"<b>{method}:</b>\n{details}\n\n"
-    payment_text += note
-
-    await message.answer(payment_text, reply_markup=cancel_kb(), parse_mode="HTML")
-
-
-async def get_screenshot(message: Message, state: FSMContext):
-    data = await state.get_data()
-    course = COURSES.get(data["course_key"])
-    now = datetime.now().strftime("%d.%m.%Y %H:%M")
-
-    paid_clients.append({
-        "name": data.get("name"),
-        "phone": data.get("phone"),
-        "course": course["name"],
-        "type": "To'liq to'lov",
-        "user_id": message.from_user.id,
-        "username": message.from_user.username or "—",
-        "date": now,
-    })
-
-    safe_name = html.escape(data.get("name") or "")
-    safe_phone = html.escape(data.get("phone") or "")
-    safe_username = html.escape(message.from_user.username or "—")
-    caption = (
-        f"💰 <b>YANGI TO'LIQ TO'LOV!</b>\n\n"
-        f"👤 Ism: {safe_name}\n"
-        f"📱 Telefon: {safe_phone}\n"
-        f"📚 Kurs: {course['name']}\n"
-        f"💵 Summa: {course['price']}\n"
-        f"🆔 Telegram ID: {message.from_user.id}\n"
-        f"👤 Username: @{safe_username}\n"
-        f"📅 Sana: {now}"
-    )
-    await bot.send_photo(chat_id=ADMIN_GROUP_ID, photo=message.photo[-1].file_id,
-                         caption=caption, parse_mode="HTML")
-    await state.clear()
-    await message.answer(
-        "✅ <b>Rahmat! To'lovingiz qabul qilindi.</b>\n\n"
-        "Tekshirib, tez orada kurs guruhiga qo'shamiz. Odatda 24 soat ichida 🤍",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📞 Psixologga yozish", callback_data="contact")],
-            [InlineKeyboardButton(text="🏠 Asosiy menyu", callback_data="back_main")],
-        ]), parse_mode="HTML"
-    )
-
-
-async def get_bron_screenshot(message: Message, state: FSMContext):
-    data = await state.get_data()
-    course = COURSES.get(data["course_key"])
-    now = datetime.now().strftime("%d.%m.%Y %H:%M")
-
-    paid_clients.append({
-        "name": data.get("name"),
-        "phone": data.get("phone"),
-        "course": course["name"],
-        "type": "Bron",
-        "user_id": message.from_user.id,
-        "username": message.from_user.username or "—",
-        "date": now,
-    })
-
-    safe_name = html.escape(data.get("name") or "")
-    safe_phone = html.escape(data.get("phone") or "")
-    safe_username = html.escape(message.from_user.username or "—")
-    caption = (
-        f"🔒 <b>YANGI BRON!</b>\n\n"
-        f"👤 Ism: {safe_name}\n"
-        f"📱 Telefon: {safe_phone}\n"
-        f"📚 Kurs: {course['name']}\n"
-        f"💵 Bron summasi: {course['bron_price']}\n"
-        f"💰 Qolgan summa: ???\n"
-        f"🆔 Telegram ID: {message.from_user.id}\n"
-        f"👤 Username: @{safe_username}\n"
-        f"📅 Sana: {now}"
-    )
-    await bot.send_photo(chat_id=ADMIN_GROUP_ID, photo=message.photo[-1].file_id,
-                         caption=caption, parse_mode="HTML")
-    await state.clear()
-    await message.answer(
-        "🔒 <b>Bron tasdiqlandi!</b>\n\n"
-        "Siz ro'yxatga olindingiz! Kurs boshlanishidan oldin siz bilan bog'lanamiz 🤍\n\n"
-        "Qolgan to'lovni kurs boshlanishidan oldin amalga oshirasiz.",
-        reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="📞 Psixologga yozish", callback_data="contact")],
-            [InlineKeyboardButton(text="🏠 Asosiy menyu", callback_data="back_main")],
-        ]), parse_mode="HTML"
-    )
-
-
 @dp.callback_query(F.data == "cancel")
 async def cancel_order(call: CallbackQuery, state: FSMContext):
     await state.clear()
@@ -395,6 +276,8 @@ async def cancel_order(call: CallbackQuery, state: FSMContext):
         ])
     )
 
+
+# ─── Business account ────────────────────────────────
 
 @dp.business_connection()
 async def on_business_connect(bc: BusinessConnection):
@@ -427,12 +310,6 @@ async def any_business_message(message: Message, state: FSMContext):
 
     current = await state.get_state()
 
-    if current == Order.waiting_name:
-        await get_name(message, state)
-        return
-    if current == Order.waiting_phone:
-        await get_phone(message, state)
-        return
     if current == Order.waiting_screenshot:
         if message.photo:
             await get_screenshot(message, state)
@@ -442,20 +319,13 @@ async def any_business_message(message: Message, state: FSMContext):
                 reply_markup=cancel_kb(), parse_mode="HTML"
             )
         return
-    if current == Order.waiting_bron_screenshot:
-        if message.photo:
-            await get_bron_screenshot(message, state)
-        else:
-            await message.answer(
-                "📸 Iltimos, aynan bron to'lovi <b>skrinshotini</b> (rasm) yuboring.",
-                reply_markup=cancel_kb(), parse_mode="HTML"
-            )
-        return
 
     text_lower = (message.text or "").lower()
     if any(word in text_lower for word in TRIGGER_WORDS):
         await message.answer(DISCOUNT_WELCOME, reply_markup=discount_trigger_kb(), parse_mode="HTML")
 
+
+# ─── Entry point ─────────────────────────────────────
 
 async def main():
     logger.info("Bot ishga tushdi!")
