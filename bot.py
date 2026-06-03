@@ -111,6 +111,8 @@ PAYMENT_TEXT = (
 
 class Order(StatesGroup):
     waiting_screenshot = State()
+    waiting_name = State()
+    waiting_phone = State()
 
 
 # ─── Keyboards ───────────────────────────────────────
@@ -165,11 +167,14 @@ async def any_message(message: Message, state: FSMContext):
     if current == Order.waiting_screenshot:
         if message.photo:
             await get_screenshot(message, state)
-        else:
-            await message.answer(
-                "📸 Iltimos, aynan to'lov <b>skrinshotini</b> (rasm) yuboring.",
-                reply_markup=cancel_kb(), parse_mode="HTML"
-            )
+        return
+
+    if current == Order.waiting_name:
+        await get_name(message, state)
+        return
+
+    if current == Order.waiting_phone:
+        await get_phone(message, state)
         return
 
     text_lower = (message.text or "").lower()
@@ -195,28 +200,54 @@ async def enroll_start(call: CallbackQuery, state: FSMContext):
 
 
 async def get_screenshot(message: Message, state: FSMContext):
+    await state.update_data(photo_id=message.photo[-1].file_id)
+    await state.set_state(Order.waiting_name)
+    await message.answer(
+        "✅ Chek qabul qilindi!\n\n"
+        "📝 Endi <b>ism va familiyangizni</b> yozing:",
+        reply_markup=cancel_kb(), parse_mode="HTML"
+    )
+
+
+async def get_name(message: Message, state: FSMContext):
+    await state.update_data(name=message.text)
+    await state.set_state(Order.waiting_phone)
+    await message.answer(
+        "📱 <b>Telefon raqamingizni</b> yozing:",
+        reply_markup=cancel_kb(), parse_mode="HTML"
+    )
+
+
+async def get_phone(message: Message, state: FSMContext):
     data = await state.get_data()
+    await state.update_data(phone=message.text)
+    data["phone"] = message.text
+
     tariff = data.get("tariff", "—")
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
+    safe_name = html.escape(data.get("name") or "—")
+    safe_phone = html.escape(data.get("phone") or "—")
     safe_username = html.escape(message.from_user.username or "—")
 
     caption = (
         f"💰 <b>YANGI TO'LOV!</b>\n\n"
         f"🎯 Tarif: {tariff}\n"
+        f"👤 Ism: {safe_name}\n"
+        f"📱 Telefon: {safe_phone}\n"
         f"🆔 Telegram ID: <code>{message.from_user.id}</code>\n"
-        f"👤 Username: @{safe_username}\n"
+        f"✈️ Username: @{safe_username}\n"
         f"📅 Sana: {now}"
     )
     await bot.send_photo(
         chat_id=ADMIN_GROUP_ID,
-        photo=message.photo[-1].file_id,
+        photo=data["photo_id"],
         caption=caption,
         parse_mode="HTML"
     )
     await state.clear()
     await message.answer(
-        "✅ <b>Rahmat! Chekingiz qabul qilindi.</b>\n\n"
-        "Tekshirib, tez orada kurs ochiladi. Odatda 24 soat ichida 🤍",
+        "🎉 <b>Rahmat! Ma'lumotlaringiz qabul qilindi.</b>\n\n"
+        "Tekshirib, tez orada kurs guruhiga qo'shamiz. Odatda 24 soat ichida 🤍",
         reply_markup=InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text="📞 Psixologga yozish", callback_data="contact")],
             [InlineKeyboardButton(text="🏠 Asosiy menyu", callback_data="back_main")],
@@ -313,11 +344,14 @@ async def any_business_message(message: Message, state: FSMContext):
     if current == Order.waiting_screenshot:
         if message.photo:
             await get_screenshot(message, state)
-        else:
-            await message.answer(
-                "📸 Iltimos, aynan to'lov <b>skrinshotini</b> (rasm) yuboring.",
-                reply_markup=cancel_kb(), parse_mode="HTML"
-            )
+        return
+
+    if current == Order.waiting_name:
+        await get_name(message, state)
+        return
+
+    if current == Order.waiting_phone:
+        await get_phone(message, state)
         return
 
     text_lower = (message.text or "").lower()
@@ -345,4 +379,5 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
