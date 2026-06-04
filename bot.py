@@ -200,7 +200,12 @@ async def enroll_start(call: CallbackQuery, state: FSMContext):
 
 
 async def get_screenshot(message: Message, state: FSMContext):
-    await state.update_data(photo_id=message.photo[-1].file_id)
+    await state.update_data(
+        photo_id=message.photo[-1].file_id,
+        user_id=message.from_user.id,
+        username=message.from_user.username or "",
+        first_name=message.from_user.first_name or "",
+    )
     await state.set_state(Order.waiting_name)
     await message.answer(
         "✅ Chek qabul qilindi!\n\n"
@@ -227,15 +232,22 @@ async def get_phone(message: Message, state: FSMContext):
     now = datetime.now().strftime("%d.%m.%Y %H:%M")
     safe_name = html.escape(data.get("name") or "—")
     safe_phone = html.escape(data.get("phone") or "—")
-    safe_username = html.escape(message.from_user.username or "—")
+    user_id = data.get("user_id", message.from_user.id)
+    username = data.get("username", "")
+    first_name = html.escape(data.get("first_name", "") or "")
+
+    if username:
+        user_line = f"@{html.escape(username)}"
+    else:
+        user_line = f'<a href="tg://user?id={user_id}">{first_name or str(user_id)}</a>'
 
     caption = (
         f"💰 <b>YANGI TO'LOV!</b>\n\n"
         f"🎯 Tarif: {tariff}\n"
         f"👤 Ism: {safe_name}\n"
         f"📱 Telefon: {safe_phone}\n"
-        f"🆔 Telegram ID: <code>{message.from_user.id}</code>\n"
-        f"✈️ Username: @{safe_username}\n"
+        f"🆔 Telegram ID: <code>{user_id}</code>\n"
+        f"✈️ Username: {user_line}\n"
         f"📅 Sana: {now}"
     )
     await bot.send_photo(
@@ -379,5 +391,6 @@ async def main():
 
 if __name__ == "__main__":
     asyncio.run(main())
+
 
 
