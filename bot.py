@@ -61,6 +61,13 @@ FOTIHA_TEXT = (
     "💎 Narxi: <b>299.000 so'm</b> ✅"
 )
 
+RETREAT_INTRO_TEXT = (
+    "🌊 <b>Oybarchin Obidova bilan retreat</b> 🌊\n\n"
+    "📍 Alaniya, Turkiya — 7 kunlik chuqur ichki transformatsiya 🤍\n\n"
+    "Batafsil ma'lumot va ikkala format (VIP / PREMIUM) uchun "
+    "pastdagi tugmani bosing 👇"
+)
+
 RETREAT_TEXT = (
     "🌊 <b>OYBARCHIN OBIDOVA BILAN RETREAT</b> 🌊\n\n"
     "📍 <b>Alaniya, Turkiya</b>\n\n"
@@ -160,6 +167,12 @@ def fotiha_kb() -> InlineKeyboardMarkup:
     ])
 
 
+def retreat_intro_kb() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📖 Batafsil ma'lumot", callback_data="show_retreat")],
+    ])
+
+
 def retreat_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="🔵 VIP — $1,550", callback_data="retreat_vip")],
@@ -212,7 +225,7 @@ async def any_message(message: Message, state: FSMContext):
 
     text_lower = (message.text or "").lower()
     if any(word in text_lower for word in RETREAT_TRIGGER_WORDS):
-        await message.answer(RETREAT_TEXT, reply_markup=retreat_kb(), parse_mode="HTML")
+        await message.answer(RETREAT_INTRO_TEXT, reply_markup=retreat_intro_kb(), parse_mode="HTML")
         return
 
     if any(word in text_lower for word in TRIGGER_WORDS):
@@ -220,6 +233,11 @@ async def any_message(message: Message, state: FSMContext):
         return
 
     await message.answer(WELCOME_TEXT, reply_markup=main_menu_kb(), parse_mode="HTML")
+
+
+@dp.callback_query(F.data == "show_retreat")
+async def show_retreat(call: CallbackQuery):
+    await safe_edit(call, RETREAT_TEXT, reply_markup=retreat_kb())
 
 
 @dp.callback_query(F.data.startswith("retreat_"))
@@ -452,7 +470,7 @@ async def any_business_message(message: Message, state: FSMContext):
 
     text_lower = (message.text or "").lower()
     if any(word in text_lower for word in RETREAT_TRIGGER_WORDS):
-        await message.answer(RETREAT_TEXT, reply_markup=retreat_kb(), parse_mode="HTML")
+        await message.answer(RETREAT_INTRO_TEXT, reply_markup=retreat_intro_kb(), parse_mode="HTML")
         return
 
     if any(word in text_lower for word in TRIGGER_WORDS):
