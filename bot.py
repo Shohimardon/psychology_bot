@@ -62,10 +62,21 @@ FOTIHA_TEXT = (
 )
 
 RETREAT_INTRO_TEXT = (
-    "🌊 <b>Oybarchin Obidova bilan retreat</b> 🌊\n\n"
-    "📍 Alaniya, Turkiya — 7 kunlik chuqur ichki transformatsiya 🤍\n\n"
-    "Batafsil ma'lumot va ikkala format (VIP / PREMIUM) uchun "
-    "pastdagi tugmani bosing 👇"
+    "🌿 Assalomu alaykum! ✨ Yozganingiz uchun rahmat!\n\n"
+    "🌊 Ha, Oybarchin Obidova Alaniyada o'zining mualliflik "
+    "retreatini o'tkazadi — <b>«Perezagruzka / Qayta yuklanish»</b> "
+    "nomli 🌅\n\n"
+    "📅 <b>25-iyuldan 1-avgustgacha</b>\n"
+    "🏖 Dengiz bo'yida 7 kunlik jonli, chuqur ishlov asosida\n\n"
+    "💬 Qisqacha aytsam: bu «osoyishtalik haqida» ma'ruza emas.\n"
+    "🔥 Bu — chuqur shaxsiy ish.\n\n"
+    "🧘‍♀️ Bir hafta ichida inson o'zining haqiqiy holatlarini ko'rib "
+    "chiqadi — 😟 xavotir, 😮‍💨 charchoq, 🔁 aylanib yuradigan "
+    "munosabatlar — va shunchaki konspekt bilan emas, "
+    "💪 ichki tayanch va aniq vositalar bilan qaytadi.\n\n"
+    "🪑 Oqimga joylar ko'p emas — jami <b>35 ta</b>, va ular "
+    "oldindan to'lov asosida band qilinadi.\n"
+    "🎯 Oqim bitta, sanalar aniq. 🤍"
 )
 
 RETREAT_TEXT = (
@@ -169,7 +180,7 @@ def fotiha_kb() -> InlineKeyboardMarkup:
 
 def retreat_intro_kb() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="📖 Batafsil ma'lumot", callback_data="show_retreat")],
+        [InlineKeyboardButton(text="🌿 Retreat haqida batafsil ma'lumot", callback_data="show_retreat")],
     ])
 
 
