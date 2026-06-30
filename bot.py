@@ -102,7 +102,7 @@ RETREAT_TEXT = (
 
     "🔵 <b>VIP — Jonli Retreat</b>\n"
     "💵 $1,550\n\n"
-    "7 kun davomida Oybarchin bilan bir makonda bo'lasiz:\n"
+    "7 kun davomida Oybarchin Obidova bilan bir makonda bo'lasiz:\n"
     "🌅 dengiz bo'yida ertalabki amaliyotlar\n"
     "🌿 kichik guruhlarda chuqur sessiyalar\n"
     "🔍 shaxsiy so'rovingiz tahlili\n"
@@ -117,7 +117,7 @@ RETREAT_TEXT = (
 
     "🟡 <b>PREMIUM — Ekspert bilan shaxsan</b>\n"
     "💵 $2,500\n\n"
-    "VIP'dagi barcha imkoniyatlar + Oybarchin butun davomida "
+    "VIP'dagi barcha imkoniyatlar + Oybarchin Obidova butun davomida "
     "siz bilan shaxsan yonma-yon bo'ladi — \"sahnadan\" emas, "
     "tirik muloqotda:\n"
     "🎯 ustuvor individual sessiyalar\n"
