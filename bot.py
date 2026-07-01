@@ -27,7 +27,7 @@ dp = Dispatcher(storage=storage)
 
 business_connections: dict[str, int] = {}
 
-TRIGGER_WORDS = ["kurs", "курс", "course", "narx", "price", "chegirma", "скидка", "fotiha", "фотиха"]
+TRIGGER_WORDS = ["kurs", "курс", "course", "chegirma", "скидка", "fotiha", "фотиха"]
 RETREAT_TRIGGER_WORDS = ["retreat", "ретрит", "retrit"]
 
 FOTIHA_TEXT = (
